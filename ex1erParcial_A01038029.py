@@ -15,6 +15,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import random
 import queue 
+import math
 from Ann import Ann
 
 #Funciones para operador de cruza o Crossover
@@ -92,6 +93,7 @@ def mutacion_limite(padre, madre):
 	original.biasFinal = original.biasFinal + (1-s)*limiteInf
 
 #Funciones de activacion
+#lineal sigmoidal y tanh
 
 def lineal(valor):
 	""" 
@@ -148,100 +150,161 @@ def trainANN(red, valores_X, valores_Y, funcion):
 	#se calculo el fitness usando el error cuadratico medio basado en la matriz anterior
 	red.fitness = 1/valores_Y.size * np.dot(error.transpose((1, 0)),error)
 
+def evalEvoANN(red, valores_X, funcion):
+	""" 
+	“Apegandome al Codigo de Etica de los Estudiantes del Tecnologico de Monterrey,
+	me comprometo a que mi actuacion en este examen este regida por la honestidad
+	academica.”
+	"""
 
+	#realizamos la multiplicacion de los pesos de la capa oculta y el resultado
+	#se le aplica la funcion de activacion
+	if funcion == 1:
+		act = sigmoid(np.dot(valores_X,red.pesosOculta))
+	elif funcion == 2:
+		act = lineal(np.dot(valores_X,red.pesosOculta))
+	elif funcion == 3:
+		act = tanh(np.dot(valores_X,red.pesosOculta))
 	
+	#se le suma el bias de la red a los valores calculados hasta el momento
+	act+=red.biasOculta
+
+	#realizamos la multiplicacion de los pesos a la neurona final
+	#se le suma el bias final
+	#se aplica la activacion sigmoidal
+	output= sigmoid(np.dot(act,red.pesosFinal) + red.biasFinal)
+
+	return output
+
+
+def trainEvoANN(X_training, Y_training, operadorCross, operadorMutacion, 
+	iteraciones_Maximas, poblacionMax, funcion_Act):
+	""" 
+	“Apegandome al Codigo de Etica de los Estudiantes del Tecnologico de Monterrey,
+	me comprometo a que mi actuacion en este examen este regida por la honestidad
+	academica.”
+	"""
+	contador_individuos = 0
+
+	#colecion que contiene la poblacion que paso a la siguiente generacion
+	generacion = queue.Queue()
+
+	#colecion que ordena a los individuos con el fitness mas bajo para pasar a la siguiente generacion
+	#se utiliza un algoritmo genetico con selecion proporcional
+	poblacionEvol = queue.PriorityQueue()
+
+	#creacion de la generacion inicial
+	while contador_individuos < poblacionMax :
+		#se crea un individuo para ser agregado a la siguiente generacion
+		primogenito = Ann(X_training[0].size)
+		#se entrena al individuo
+		trainANN(primogenito,X_training,Y_training,funcion_Act)
+		#se agrega a la poblacion que paso a la siguiente generacion
+		generacion.put(primogenito)
+		#agrega 1 a la cuenta de individuos
+		contador_individuos+=1
+
+	#iniciamos variable ce control de ciclo
+	iteracionActual = 0
+	while iteracionActual < int(iteraciones_Max):
+		#mientras no se haya procesado cada individuo de la generacion
+		while not generacion.empty():
+			#sacamos 2 individuos de la generacion
+			padre = generacion.get()
+			madre = generacion.get()
+
+			#en base al input de usuario cruzamos los individuos
+			#y creamos un individuo hijo
+			if operadorCross == 1:
+				hijo = crossAritmetico(padre,madre)
+			elif operadorCross == 2:
+				hijo = crossAritmetico(padre,madre)
+
+			#en base al input de usurtio el hijo muta
+			if operadorMutacion == 1:
+				mutacion_Uniforme(hijo)
+			elif operadorMutacion == 2:
+				mutacion_limite(hijo)
+
+			#se enetrena al hijo
+			trainANN(hijo,X_training,Y_training,funcion_Act)
+
+			#se agregar los 3 individuos a la colecion donde se realizara la proportional selection
+			poblacionEvol.put(hijo)
+			poblacionEvol.put(padre)
+			poblacionEvol.put(madre)
+			
+		#Agregamos la cantidad necesaria de poblacion a la siguiente generacion
+		while generacion.qsize() < poblacionMax:
+			generacion.put(poblacionEvol.get())
+
+		#dejamos morir a los individuos que no fueron selecionados
+		while not poblacionEvol.empty():
+			poblacionEvol.get()
+
+		#aumentamos la generacion
+		iteracionActual+=1
+		print("Generacion",iteracionActual,"fue realizada")
+
+	return generacion.get()
+
+
 #input y validacion de input
-crossover = input('Cual operador de cruza desea: \n1 Aritmetico \n2 One point ')
+crossover = input('Cual operador de cruza desea: \n1 Aritmetico \n2 One point\n')
+# mientras que el casting a int del string recibido no este en el rango valido preguntar po uno que lo este
 while int(crossover) > 2 or int(crossover) < 1:
-	crossover = input('Operador de cruza invalido selecione uno de los siguientes: \n1 Aritmetico \n2 One point ')
+	crossover = input('Operador de cruza invalido selecione uno de los siguientes: \n1 Aritmetico \n2 One point\n')
 
-mutacion = input('Cual operador de mutacion desea: \n1 Uniforme \n2 Normal  ')
+mutacion = input('Cual operador de mutacion desea: \n1 Uniforme \n2 Normal\n')
 while int(mutacion) > 2 or int(mutacion) < 1:
-	mutacion = input('Operador de mutacion invalido selecione uno de los siguientes: \n1 Uniforme \n2 Limite ')
+	mutacion = input('Operador de mutacion invalido selecione uno de los siguientes: \n1 Uniforme \n2 Limite\n')
 
-iteraciones_Max = input('Numero maximo de iteracioners: ')
+iteraciones_Max = input('Numero maximo de iteracioners:\n')
 while int(iteraciones_Max) < 2:
-	iteraciones_Max = input('Porfavor ingrese un valor mayor a 1')
+	iteraciones_Max = input('Porfavor ingrese un valor mayor a 1\n')
 
-poblacion = input('Ingrese el tamaño de la poblacion: ')
-while int(iteraciones_Max) < 4:
-	poblacion = input('Porfavor ingrese un tamaño de poblacion mayor a 3')
+poblacion = input('Ingrese el tamaño de la poblacion:\n')
+while int(poblacion) < 4:
+	poblacion = input('Porfavor ingrese un tamaño de poblacion mayor a 3\n')
 
-funcion_Activacion = input('Cual funcion de activacion desea: \n1 sigmoidal \n2 lineal \n3 Tanh ')
+funcion_Activacion = input('Cual funcion de activacion desea: \n1 sigmoidal \n2 lineal \n3 Tanh\n')
 while int(funcion_Activacion) > 3 or int(funcion_Activacion) < 1:
-	funcion_Activacion = input('Funcion de activacion invalida selecione una de las siguientes: \n1 sigmoidal \n2 lineal \n3 Tanh ')
+	funcion_Activacion = input('Funcion de activacion invalida selecione una de las siguientes: \n1 sigmoidal \n2 lineal \n3 Tanh\n')
 
-
+#Cargamos los datos de entreanamiento
 data = loadmat('blood.mat')
 X = data['X']
 Y = data['Y']
 
-contador_individuos = 0
-
-#colecion que contiene la poblacion que paso a la siguiente poblacion
-generacion = queue.Queue()
-
-#colecion que ordena a los individuos con el fitness mas bajo para pasar a la siguiente generacio
-poblacionEvol = queue.PriorityQueue()
-
-#creacion de la generacion inicial
-while i < int(poblacion) :
-	#se crea un individuo para ser agregado a la siguiente generacion
-	primogenito = Ann(X[0].size)
-	#se entrena al individuo
-	trainANN(primogenito,X,Y,int(funcion_Activacion))
-	#se agrega a la poblacion que paso a la siguiente generacion
-	generacion.put(primogenito)
-	#agrega 1 a la cuenta de individuos
-	contador_individuos+=1
-
-#iniciamos variable ce control de ciclo
-iteracionActual = 0
-while iteracionActual < int(iteraciones_Max):
-	#mientras no se haya procesado cada individuo de la generacion
-	while not generacion.empty():
-		#sacamos 2 individuos de la generacion
-		padre = generacion.get()
-		madre = generacion.get()
-
-		#en base al input de usuario cruzamos los individuos
-		#y creamos un individuo hijo
-		if int(crossover) == 1:
-			hijo = crossAritmetico(padre,madre)
-		elif int(crossover) == 2:
-			hijo = crossAritmetico(padre,madre)
-
-		#en base al input de usurtio el hijo muta
-		if int(mutacion) == 1:
-			mutacion_Uniforme(hijo)
-		elif int(mutacion) == 2:
-			mutacion_limite(hijo)
-
-		#se enetrena al hijo
-		trainANN(hijo,X,Y,int(funcion_Activacion))
-
-		#se agregar los 3 individuos a la colecion donde se realizara la proportional selection
-		poblacionEvol.put(hijo)
-		poblacionEvol.put(padre)
-		poblacionEvol.put(madre)
-		
-	#Agregamos la cantidad necesaria de poblacion a la siguiente generacion
-	while generacion.qsize() < int(poblacion):
-		generacion.put(poblacionEvol.get())
-
-	#dejamos morir a los individuos que no fueron selecionados
-	while not poblacionEvol.empty():
-		poblacionEvol.get()
-
-	#aumentamos la generacion
-	iteracionActual+=1
-	print("Generacion",iteracionActual,"fue realizada")
+#auxiliares para calcular el tamaño de la muestras de entrenamiento y pruebas
+k=X.size
+aux = math.floor(k/3 * 2)
+print(aux)
 
 
-#pruebas
-while not generacion.empty():
-	mejor = generacion.get()
-	print("fitness de individuo ",int(poblacion)-generacion.qsize(), "es ", mejor.fitness)
+
+#Separamos las muestras de entrenamiento de la de pruebas con los tamaños
+
+
+XTrain=X[0:aux:1]
+XTest = X[aux:k-1:1]
+
+print("Real size",X.size)
+print("Training size",XTrain.size)
+print("Test size",XTest.size)
+
+YTrain = Y[:aux]
+YTest = Y[aux:]
+
+modelo = trainEvoANN(XTrain, YTrain, int(crossover), int(mutacion), 
+	int(iteraciones_Max), int(poblacion), int(funcion_Activacion))
+
+print(evalEvoANN(modelo,XTest,int(funcion_Activacion)))
+
+
+
+
+
 
 
 
