@@ -52,7 +52,7 @@ def crossAritmetico(padre, madre):
 	"""
 	alpha = .4 #proporcion de cruza de cada padre
 	hijo = Ann(padre.size)#iniciamos el hijo como una nueva red dado el tamaño del padre
-	
+
 	#asignamos cada atributo de la red hijo a la suma del porcentaje 
 	#de cada atributo que tiene el padre y la madre
 	hijo.pesosOculta = padre.pesosOculta*alpha + madre.pesosOculta*(1-alpha)
@@ -118,28 +118,38 @@ def tanh(valor):
 	"""
 	return 2/(1+np.exp(-valor)) - 1
 
-def trainANN(red, valores_X, valores_Y):
+def trainANN(red, valores_X, valores_Y, funcion):
 	""" 
 	“Apegandome al Codigo de Etica de los Estudiantes del Tecnologico de Monterrey,
 	me comprometo a que mi actuacion en este examen este regida por la honestidad
 	academica.”
 	"""
-	act = lineal(np.dot(valores_X,red.pesosOculta))
-	#print("Activacion\n",act)
+
+	#realizamos la multiplicacion de los pesos de la capa oculta y el resultado
+	#se le aplica la funcion de activacion
+	if funcion == 1:
+		act = sigmoid(np.dot(valores_X,red.pesosOculta))
+	elif funcion == 2:
+		act = lineal(np.dot(valores_X,red.pesosOculta))
+	elif funcion == 3:
+		act = tanh(np.dot(valores_X,red.pesosOculta))
+	
+	#se le suma el bias de la red a los valores calculados hasta el momento
 	act+=red.biasOculta
-	#print("bias\n",act)
 
-	output= sigmoid(np.dot(act,red.pesosFinal))
-	#print("final\n",output)
+	#realizamos la multiplicacion de los pesos a la neurona final
+	#se le suma el bias final
+	#se aplica la activacion sigmoidal
+	output= sigmoid(np.dot(act,red.pesosFinal) + red.biasFinal)
 
-	output+=red.biasFinal
-	#print("final\n",output)
-
+	#se crea una matriz de error de la matriz contra los valores esperados
 	error = (output - valores_Y)
+
+	#se calculo el fitness usando el error cuadratico medio basado en la matriz anterior
 	red.fitness = 1/valores_Y.size * np.dot(error.transpose((1, 0)),error)
 
 
-	"""-
+	
 #input y validacion de input
 crossover = input('Cual operador de cruza desea: \n1 Aritmetico \n2 One point ')
 while int(crossover) > 2 or int(crossover) < 1:
@@ -147,47 +157,92 @@ while int(crossover) > 2 or int(crossover) < 1:
 
 mutacion = input('Cual operador de mutacion desea: \n1 Uniforme \n2 Normal  ')
 while int(mutacion) > 2 or int(mutacion) < 1:
-	mutacion = input('Operador de mutacion invalido selecione uno de los siguientes: \n1 Uniforme \n2 Normal ')
+	mutacion = input('Operador de mutacion invalido selecione uno de los siguientes: \n1 Uniforme \n2 Limite ')
 
 iteraciones_Max = input('Numero maximo de iteracioners: ')
+while int(iteraciones_Max) < 2:
+	iteraciones_Max = input('Porfavor ingrese un valor mayor a 1')
 
 poblacion = input('Ingrese el tamaño de la poblacion: ')
+while int(iteraciones_Max) < 4:
+	poblacion = input('Porfavor ingrese un tamaño de poblacion mayor a 3')
 
-funcion_Activacion = input('Cual funcion de activacion desea: \n1 sigmoidal \n2 lineal \n3 Tanh')
+funcion_Activacion = input('Cual funcion de activacion desea: \n1 sigmoidal \n2 lineal \n3 Tanh ')
 while int(funcion_Activacion) > 3 or int(funcion_Activacion) < 1:
-	funcion_Activacion = input('Funcion de activacion invalida selecione una de las siguientes: \n1 sigmoidal \n2 lineal \n3 Tanh')
-
-	"""
-
+	funcion_Activacion = input('Funcion de activacion invalida selecione una de las siguientes: \n1 sigmoidal \n2 lineal \n3 Tanh ')
 
 
 data = loadmat('blood.mat')
 X = data['X']
 Y = data['Y']
 
+contador_individuos = 0
 
-primogenito = Ann(X[0].size)
-primogenita = Ann(X[0].size)
-primogenito.imprime()
+#colecion que contiene la poblacion que paso a la siguiente poblacion
+generacion = queue.Queue()
 
-
-trainANN(primogenito,X,Y)
-primogenito.imprime()
-
-mutacion_Uniforme(primogenito)
-
-trainANN(primogenito,X,Y)
-primogenito.imprime()
-
+#colecion que ordena a los individuos con el fitness mas bajo para pasar a la siguiente generacio
 poblacionEvol = queue.PriorityQueue()
 
-poblacionEvol.put(primogenita)
-poblacionEvol.put(primogenito)
+#creacion de la generacion inicial
+while i < int(poblacion) :
+	#se crea un individuo para ser agregado a la siguiente generacion
+	primogenito = Ann(X[0].size)
+	#se entrena al individuo
+	trainANN(primogenito,X,Y,int(funcion_Activacion))
+	#se agrega a la poblacion que paso a la siguiente generacion
+	generacion.put(primogenito)
+	#agrega 1 a la cuenta de individuos
+	contador_individuos+=1
 
-poblacionEvol.get(0).imprime()
-poblacionEvol.get(1).imprime()
+#iniciamos variable ce control de ciclo
+iteracionActual = 0
+while iteracionActual < int(iteraciones_Max):
+	#mientras no se haya procesado cada individuo de la generacion
+	while not generacion.empty():
+		#sacamos 2 individuos de la generacion
+		padre = generacion.get()
+		madre = generacion.get()
+
+		#en base al input de usuario cruzamos los individuos
+		#y creamos un individuo hijo
+		if int(crossover) == 1:
+			hijo = crossAritmetico(padre,madre)
+		elif int(crossover) == 2:
+			hijo = crossAritmetico(padre,madre)
+
+		#en base al input de usurtio el hijo muta
+		if int(mutacion) == 1:
+			mutacion_Uniforme(hijo)
+		elif int(mutacion) == 2:
+			mutacion_limite(hijo)
+
+		#se enetrena al hijo
+		trainANN(hijo,X,Y,int(funcion_Activacion))
+
+		#se agregar los 3 individuos a la colecion donde se realizara la proportional selection
+		poblacionEvol.put(hijo)
+		poblacionEvol.put(padre)
+		poblacionEvol.put(madre)
+		
+	#Agregamos la cantidad necesaria de poblacion a la siguiente generacion
+	while generacion.qsize() < int(poblacion):
+		generacion.put(poblacionEvol.get())
+
+	#dejamos morir a los individuos que no fueron selecionados
+	while not poblacionEvol.empty():
+		poblacionEvol.get()
+
+	#aumentamos la generacion
+	iteracionActual+=1
+	print("Generacion",iteracionActual,"fue realizada")
+
+
+#pruebas
+while not generacion.empty():
+	mejor = generacion.get()
+	print("fitness de individuo ",int(poblacion)-generacion.qsize(), "es ", mejor.fitness)
 
 
 
-primogenita.imprime()
 
