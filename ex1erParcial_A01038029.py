@@ -66,20 +66,31 @@ def crossAritmetico(padre, madre):
 
 #Funciones para operador de mutacion
 
-def mutacion_Uniforme(original):
+def mutacion_Uniforme(original,probabilidadMutacin):
 	""" 
 	“Apegandome al Codigo de Etica de los Estudiantes del Tecnologico de Monterrey,
 	me comprometo a que mi actuacion en este examen este regida por la honestidad
 	academica.”
 	"""
 	limiteInf = -.5
-	original.pesosOculta = (original.pesosOculta - limiteInf)*random.random() + limiteInf
-	original.biasOculta = (original.biasOculta - limiteInf)*random.random() + limiteInf
-	original.pesosFinal = (original.pesosFinal - limiteInf)*random.random() + limiteInf
-	original.biasFinal = (original.biasFinal - limiteInf)*random.random() + limiteInf
+	for peso in original.pesosOculta:
+		if random.random() < probabilidadMutacin:
+			peso = (original.pesosOculta - limiteInf)*random.random() + limiteInf
+			
+	for bias in original.biasOculta:
+		if random.random() < probabilidadMutacin:
+			bias = (original.biasOculta - limiteInf)*random.random() + limiteInf
+
+	for peso in original.pesosOculta:
+		if random.random() < probabilidadMutacin:
+			peso = (original.pesosFinal - limiteInf)*random.random() + limiteInf
+
+	for bias in original.biasFinal:
+		if random.random() < probabilidadMutacin:
+			bias = (original.biasFinal - limiteInf)*random.random() + limiteInf
 	
 
-def mutacion_limite(padre, madre):
+def mutacion_limite(original,probabilidadMutacin):
 	""" 
 	“Apegandome al Codigo de Etica de los Estudiantes del Tecnologico de Monterrey,
 	me comprometo a que mi actuacion en este examen este regida por la honestidad
@@ -87,10 +98,21 @@ def mutacion_limite(padre, madre):
 	"""
 	limiteInf = -.5
 	s= random.random()
-	original.pesosOculta = original.pesosOculta + (1-s)*limiteInf
-	original.biasOculta = original.biasOculta + (1-s)*limiteInf
-	original.pesosFinal = original.pesosFinal + (1-s)*limiteInf
-	original.biasFinal = original.biasFinal + (1-s)*limiteInf
+	for peso in original.pesosOculta:
+		if random.random() < probabilidadMutacin:
+			original.pesosOculta = original.pesosOculta + (1-s)*limiteInf
+
+	for bias in original.biasOculta:
+		if random.random() < probabilidadMutacin:
+			bias = original.biasOculta + (1-s)*limiteInf
+
+	for peso in original.pesosOculta:
+		if random.random() < probabilidadMutacin:
+			original.pesosFinal = original.pesosFinal + (1-s)*limiteInf
+
+	for bias in original.biasFinal:
+		if random.random() < probabilidadMutacin:
+			original.biasFinal = original.biasFinal + (1-s)*limiteInf
 
 #Funciones de activacion
 #lineal sigmoidal y tanh
@@ -178,7 +200,7 @@ def evalEvoANN(red, valores_X, funcion):
 
 
 def trainEvoANN(X_training, Y_training, operadorCross, operadorMutacion, 
-	iteraciones_Maximas, poblacionMax, funcion_Act):
+	iteraciones_Maximas, poblacionMax, funcion_Act, probabilidadMutacin):
 	""" 
 	“Apegandome al Codigo de Etica de los Estudiantes del Tecnologico de Monterrey,
 	me comprometo a que mi actuacion en este examen este regida por la honestidad
@@ -218,13 +240,13 @@ def trainEvoANN(X_training, Y_training, operadorCross, operadorMutacion,
 			if operadorCross == 1:
 				hijo = crossAritmetico(padre,madre)
 			elif operadorCross == 2:
-				hijo = crossAritmetico(padre,madre)
+				hijo = crossOne_point(padre,madre)
 
 			#en base al input de usurtio el hijo muta
 			if operadorMutacion == 1:
-				mutacion_Uniforme(hijo)
+				mutacion_Uniforme(hijo, probabilidadMutacin)
 			elif operadorMutacion == 2:
-				mutacion_limite(hijo)
+				mutacion_limite(hijo, probabilidadMutacin)
 
 			#se enetrena al hijo
 			trainANN(hijo,X_training,Y_training,funcion_Act)
@@ -246,6 +268,8 @@ def trainEvoANN(X_training, Y_training, operadorCross, operadorMutacion,
 		iteracionActual+=1
 		print("Generacion",iteracionActual,"fue realizada")
 
+
+	
 	return generacion.get()
 
 
@@ -271,35 +295,26 @@ funcion_Activacion = input('Cual funcion de activacion desea: \n1 sigmoidal \n2 
 while int(funcion_Activacion) > 3 or int(funcion_Activacion) < 1:
 	funcion_Activacion = input('Funcion de activacion invalida selecione una de las siguientes: \n1 sigmoidal \n2 lineal \n3 Tanh\n')
 
+probabilidadMutacion = input('Ingrese la probabilidad de mutacion \n')
+while float(probabilidadMutacion) > 1 or float(probabilidadMutacion) <= 0:
+	probabilidadMutacion = input('Probiblidad invalida por favor ingrese un valor pequeño entre el 0 y 1\n')
+
+random_seed = input("Ingrese una semilla para los numero random al calcular la mutacion\n")
+random.seed(random_seed)
+
 #Cargamos los datos de entreanamiento
 data = loadmat('blood.mat')
 X = data['X']
 Y = data['Y']
 
-#auxiliares para calcular el tamaño de la muestras de entrenamiento y pruebas
-k=X.size
-aux = math.floor(k/3 * 2)
-print(aux)
 
+modelo = trainEvoANN(X, Y, int(crossover), int(mutacion), 
+	int(iteraciones_Max), int(poblacion), int(funcion_Activacion), float(probabilidadMutacion))
 
+print("valores de la red entrenada")
+modelo.imprime()
 
-#Separamos las muestras de entrenamiento de la de pruebas con los tamaños
-
-
-XTrain=X[0:aux:1]
-XTest = X[aux:k-1:1]
-
-print("Real size",X.size)
-print("Training size",XTrain.size)
-print("Test size",XTest.size)
-
-YTrain = Y[:aux]
-YTest = Y[aux:]
-
-modelo = trainEvoANN(XTrain, YTrain, int(crossover), int(mutacion), 
-	int(iteraciones_Max), int(poblacion), int(funcion_Activacion))
-
-print(evalEvoANN(modelo,XTest,int(funcion_Activacion)))
+print("Valores encontrados por la red entrenada\n",evalEvoANN(modelo,X,int(funcion_Activacion)))
 
 
 
